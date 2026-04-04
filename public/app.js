@@ -1,5 +1,5 @@
 // ── State ──
-let currentLevel = localStorage.getItem('explainme-level') || 'eli5';
+let currentLevel = localStorage.getItem('explaintome-level') || 'eli5';
 let conversationHistory = [];
 let currentPageTitle = '';
 let currentPageUrl = '';
@@ -46,7 +46,7 @@ levelBtns.forEach(btn => {
     levelBtns.forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     currentLevel = btn.dataset.level;
-    localStorage.setItem('explainme-level', currentLevel);
+    localStorage.setItem('explaintome-level', currentLevel);
     updateLevelDescription();
   });
 });

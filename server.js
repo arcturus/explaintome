@@ -80,8 +80,8 @@ async function streamChat(systemPrompt, messages, res) {
     headers: {
       'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
       'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://explainme.local',
-      'X-Title': 'ExplainMe',
+      'HTTP-Referer': 'https://explaintome.website',
+      'X-Title': 'ExplainToMe',
     },
     body: JSON.stringify(body),
   });
@@ -149,7 +149,7 @@ app.post('/api/explain', async (req, res) => {
 
   if (!selectedText) return res.status(400).json({ error: 'No text selected' });
 
-  const systemPrompt = `You are ExplainMe, an AI assistant that explains web content. The user is reading a web page and has highlighted some text they want explained.
+  const systemPrompt = `You are ExplainToMe, an AI assistant that explains web content. The user is reading a web page and has highlighted some text they want explained.
 
 Page: "${pageTitle || 'Unknown'}" (${pageUrl || 'Unknown URL'})
 
@@ -183,7 +183,7 @@ Keep your response focused and well-structured. Use markdown formatting.`;
 app.post('/api/chat', async (req, res) => {
   const { message, conversationHistory, pageTitle, pageUrl, level } = req.body;
 
-  const systemPrompt = `You are ExplainMe, an AI assistant that explains web content. The user is reading a web page and asking follow-up questions about content they highlighted.
+  const systemPrompt = `You are ExplainToMe, an AI assistant that explains web content. The user is reading a web page and asking follow-up questions about content they highlighted.
 
 Page: "${pageTitle || 'Unknown'}" (${pageUrl || 'Unknown URL'})
 
@@ -203,6 +203,6 @@ Keep your response focused and well-structured. Use markdown formatting.`;
 
 const PORT = process.env.PORT || 6565;
 app.listen(PORT, () => {
-  console.log(`ExplainMe running at http://localhost:${PORT}`);
+  console.log(`ExplainToMe running at http://localhost:${PORT}`);
   console.log(`Model: ${OPENROUTER_MODEL}`);
 });
