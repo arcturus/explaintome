@@ -19,4 +19,4 @@ jobs:
             cd ~/dev/explaintome
             GIT_SSH_COMMAND="ssh -i ~/.ssh/explaintome_deploy -o StrictHostKeyChecking=no" git pull origin main
             npm install --omit=dev
-            pm2 restart explaintome || pm2 start server.js --name explaintome
+            pm2 restart explainme
