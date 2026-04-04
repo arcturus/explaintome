@@ -15,9 +15,8 @@ jobs:
           username: francisco
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            source ~/.bashrc
             cd ~/dev/explaintome
             git pull origin main
-            npm install --production
-            pm2 restart explaintome
+            npm install --omit=dev
+            pm2 restart explaintome || pm2 start server.js --name explaintome
