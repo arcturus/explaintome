@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EXPLAINME</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <!-- Top Bar -->
+  <header class="topbar">
+    <div class="topbar-brand">EXPLAINME</div>
+    <div class="topbar-url">
+      <input type="text" id="url-input" placeholder="Paste a URL to explore and understand" spellcheck="false">
+      <button id="go-btn">GO</button>
+    </div>
+    <div class="topbar-level">
+      <button class="level-btn" data-level="eli5" title="Explain Like I'm 5 — Zero knowledge assumed, fun analogies, short and easy">ELI5</button>
+      <button class="level-btn" data-level="simple" title="Simple — Plain language, no jargon, clear and accessible">SIMPLE</button>
+      <button class="level-btn" data-level="detailed" title="Detailed — Thorough explanation with proper terminology and nuances">DETAILED</button>
+      <button class="level-btn" data-level="expert" title="Expert — Technical deep-dive, assumes domain familiarity, covers edge cases">EXPERT</button>
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <div class="main">
+    <!-- Content Viewer -->
+    <div class="viewer" id="viewer">
+      <div class="viewer-empty" id="viewer-empty">
+        <div class="viewer-empty-icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#757575" stroke-width="1" stroke-linecap="square">
+            <path d="M2 3h20v18H2z"/>
+            <path d="M2 7h20"/>
+            <circle cx="5" cy="5" r="0.5" fill="#757575"/>
+            <circle cx="7.5" cy="5" r="0.5" fill="#757575"/>
+            <circle cx="10" cy="5" r="0.5" fill="#757575"/>
+          </svg>
+        </div>
+        <p class="viewer-empty-title">PASTE A URL ABOVE</p>
+        <p class="viewer-empty-sub">Highlight any text on the page to get an explanation</p>
+      </div>
+      <div class="viewer-loading hidden" id="viewer-loading">
+        <div class="loader"></div>
+        <p>LOADING CONTENT</p>
+      </div>
+      <iframe id="content-frame" class="hidden" sandbox="allow-same-origin"></iframe>
+    </div>
+
+    <!-- Explain Panel -->
+    <div class="panel" id="panel">
+      <div class="panel-toggle" id="panel-toggle">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
+          <path d="M15 18l-6-6 6-6"/>
+        </svg>
+      </div>
+
+      <div class="panel-content">
+        <div class="panel-empty" id="panel-empty">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#757575" stroke-width="1" stroke-linecap="square">
+            <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <p class="panel-empty-title">SELECT TEXT TO EXPLAIN</p>
+          <p class="panel-empty-sub">Highlight any text on the loaded page, then click "Explain" or it will auto-explain</p>
+        </div>
+
+        <div class="panel-chat hidden" id="panel-chat">
+          <div class="panel-selection" id="panel-selection">
+            <div class="panel-selection-label">SELECTED TEXT</div>
+            <div class="panel-selection-text" id="selected-text-display"></div>
+          </div>
+          <div class="chat-messages" id="chat-messages"></div>
+        </div>
+      </div>
+
+      <div class="panel-input-area hidden" id="panel-input-area">
+        <div class="panel-input-wrap">
+          <input type="text" id="chat-input" placeholder="Ask a follow-up question...">
+          <button id="chat-send">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/marked.min.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
