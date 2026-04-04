@@ -51,6 +51,25 @@ levelBtns.forEach(btn => {
   });
 });
 
+// ── Theme Toggle ──
+const themeToggle = document.getElementById('theme-toggle');
+const savedTheme = localStorage.getItem('explaintome-theme') || 'dark';
+if (savedTheme === 'light') document.documentElement.classList.add('light');
+updateThemeIcon();
+
+themeToggle.addEventListener('click', () => {
+  document.documentElement.classList.toggle('light');
+  const isLight = document.documentElement.classList.contains('light');
+  localStorage.setItem('explaintome-theme', isLight ? 'light' : 'dark');
+  updateThemeIcon();
+});
+
+function updateThemeIcon() {
+  const isLight = document.documentElement.classList.contains('light');
+  themeToggle.querySelector('.icon-sun').classList.toggle('hidden', isLight);
+  themeToggle.querySelector('.icon-moon').classList.toggle('hidden', !isLight);
+}
+
 // ── Panel Toggle ──
 panelToggle.addEventListener('click', () => {
   panel.classList.toggle('collapsed');
