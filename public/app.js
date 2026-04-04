@@ -1,3 +1,5 @@
+document.getElementById('year').textContent = new Date().getFullYear();
+
 // ── State ──
 let currentLevel = localStorage.getItem('explaintome-level') || 'eli5';
 let conversationHistory = [];
