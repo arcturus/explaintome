@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#0a0a0a"/>
+  <rect x="56" y="56" width="400" height="400" fill="none" stroke="#1c69d4" stroke-width="24"/>
+  <text x="256" y="310" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="900" font-size="280" fill="#ffffff" letter-spacing="-10">?</text>
+  <rect x="56" y="380" width="400" height="76" fill="#1c69d4"/>
+  <text x="256" y="438" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="700" font-size="40" fill="#ffffff" letter-spacing="6">EXPLAIN</text>
+</svg>
