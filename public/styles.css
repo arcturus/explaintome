@@ -232,6 +232,8 @@ html, body {
   justify-content: center;
   gap: 12px;
   background: var(--viewer-empty-bg);
+  text-align: center;
+  padding: 20px;
 }
 
 .viewer-empty-title {
