@@ -599,23 +599,93 @@ html, body {
 /* ── Responsive ── */
 
 @media (max-width: 768px) {
+  .topbar {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .topbar-brand {
+    font-size: 14px;
+  }
+
+  .topbar-url {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .topbar-url input {
+    height: 32px;
+    font-size: 13px;
+    padding: 0 10px;
+  }
+
+  #go-btn {
+    height: 32px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+
+  .topbar-level {
+    order: 1;
+    flex: 1;
+  }
+
+  .level-btn {
+    flex: 1;
+    height: 28px;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+
+  .theme-toggle {
+    order: 1;
+    width: 28px;
+    height: 28px;
+  }
+
+  .main {
+    height: calc(100vh - 80px - 24px);
+    flex-direction: column;
+  }
+
+  .viewer {
+    flex: 1;
+  }
+
   .panel {
     width: 100%;
     min-width: 100%;
     position: fixed;
     right: 0;
-    top: 56px;
-    bottom: 0;
+    top: 80px;
+    bottom: 24px;
     transform: translateX(100%);
     transition: transform 0.2s;
     z-index: 100;
+    border-left: none;
+    border-top: 1px solid var(--border);
   }
 
-  .panel.mobile-open {
+  .panel:not(.collapsed) {
     transform: translateX(0);
   }
 
   .panel.collapsed {
     transform: translateX(100%);
+  }
+
+  .panel-toggle {
+    left: -28px;
+    top: 8px;
+  }
+
+  .site-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 101;
   }
 }
