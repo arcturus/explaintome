@@ -73,8 +73,19 @@ function updateThemeIcon() {
 }
 
 // ── Panel Toggle ──
+const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
+const mobileCloseBtn = document.getElementById('mobile-close-btn');
+
+mobileCloseBtn.addEventListener('click', () => {
+  panel.classList.remove('mobile-open');
+});
+
 panelToggle.addEventListener('click', () => {
-  panel.classList.toggle('collapsed');
+  if (isMobile()) {
+    panel.classList.toggle('mobile-open');
+  } else {
+    panel.classList.toggle('collapsed');
+  }
 });
 
 // ── URL Loading ──
@@ -273,6 +284,8 @@ function triggerExplain(selectedText, surroundingContext) {
   panelEmpty.classList.add('hidden');
   panelChat.classList.remove('hidden');
   panelInputArea.classList.remove('hidden');
+  panel.classList.remove('collapsed');
+  panel.classList.add('mobile-open');
 
   // Show selected text
   selectedTextDisplay.textContent = selectedText;
@@ -422,4 +435,5 @@ function resetPanel() {
   panelEmpty.classList.remove('hidden');
   panelChat.classList.add('hidden');
   panelInputArea.classList.add('hidden');
+  panel.classList.remove('mobile-open');
 }
