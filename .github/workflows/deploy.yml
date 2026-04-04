@@ -1,0 +1,21 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: jordano.es
+          username: francisco
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd ~/dev/explaintome
+            git pull origin main
+            npm install --production
+            pm2 restart explaintome
