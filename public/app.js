@@ -150,8 +150,8 @@ async function loadUrl() {
   } catch (err) {
     viewerLoading.classList.add('hidden');
     viewerEmpty.classList.remove('hidden');
-    viewerEmpty.querySelector('.viewer-empty-title').textContent = 'FAILED TO LOAD';
-    viewerEmpty.querySelector('.viewer-empty-sub').textContent = err.message;
+    viewerEmpty.querySelector('.viewer-empty-title').textContent = 'COULDN\'T LOAD THIS PAGE';
+    viewerEmpty.querySelector('.viewer-empty-sub').textContent = 'Please check that the URL is correct and the website is accessible, then try again.';
   }
 }
 
