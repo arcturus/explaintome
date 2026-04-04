@@ -164,6 +164,9 @@ function showExplainFab(text, selection, iframeDoc) {
   const range = selection.getRangeAt(0);
   const rect = range.getBoundingClientRect();
 
+  // Capture context now before selection might get cleared
+  const surrounding = getSurroundingContext(range, iframeDoc);
+
   // Get iframe position relative to viewport
   const frameRect = contentFrame.getBoundingClientRect();
 
@@ -173,23 +176,37 @@ function showExplainFab(text, selection, iframeDoc) {
   fab.style.left = `${frameRect.left + rect.left + rect.width / 2 - 40}px`;
   fab.style.top = `${frameRect.top + rect.bottom + 8}px`;
 
-  fab.addEventListener('click', () => {
+  fab.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+
+  fab.addEventListener('click', (e) => {
+    e.stopPropagation();
     removeExplainFab();
-    const surrounding = getSurroundingContext(range, iframeDoc);
     triggerExplain(text, surrounding);
   });
 
   document.body.appendChild(fab);
   explainFab = fab;
 
-  // Remove on next click elsewhere
+  // Remove on next mousedown elsewhere (but not on the fab itself)
   const removeHandler = (e) => {
-    if (e.target !== fab) {
+    if (!fab.contains(e.target)) {
       removeExplainFab();
-      document.removeEventListener('mousedown', removeHandler);
+      document.removeEventListener('mousedown', removeHandler, true);
+      iframeDoc.removeEventListener('mousedown', iframeRemoveHandler, true);
     }
   };
-  setTimeout(() => document.addEventListener('mousedown', removeHandler), 50);
+  const iframeRemoveHandler = () => {
+    removeExplainFab();
+    document.removeEventListener('mousedown', removeHandler, true);
+    iframeDoc.removeEventListener('mousedown', iframeRemoveHandler, true);
+  };
+  setTimeout(() => {
+    document.addEventListener('mousedown', removeHandler, true);
+    iframeDoc.addEventListener('mousedown', iframeRemoveHandler, true);
+  }, 50);
 }
 
 function removeExplainFab() {
