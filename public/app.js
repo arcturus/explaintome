@@ -74,6 +74,11 @@ function updateThemeIcon() {
 
 // ── Panel Toggle ──
 const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
+const mobileCloseBtn = document.getElementById('mobile-close-btn');
+
+mobileCloseBtn.addEventListener('click', () => {
+  panel.classList.remove('mobile-open');
+});
 
 panelToggle.addEventListener('click', () => {
   if (isMobile()) {
