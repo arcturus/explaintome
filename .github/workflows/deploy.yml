@@ -15,9 +15,7 @@ jobs:
           username: francisco
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
-            export PATH="$HOME/.nvm/versions/node/$(node -v)/bin:$PATH"
+            export PATH="/home/francisco/.nvm/versions/node/v22.18.0/bin:$PATH"
             cd ~/dev/explaintome
             GIT_SSH_COMMAND="ssh -i ~/.ssh/explaintome_deploy -o StrictHostKeyChecking=no" git pull origin main
             npm install --omit=dev
