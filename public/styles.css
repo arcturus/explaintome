@@ -669,12 +669,8 @@ html, body {
     border-top: 1px solid var(--border);
   }
 
-  .panel:not(.collapsed) {
+  .panel.mobile-open {
     transform: translateX(0);
-  }
-
-  .panel.collapsed {
-    transform: translateX(100%);
   }
 
   .panel-toggle {

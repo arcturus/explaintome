@@ -75,6 +75,7 @@ function updateThemeIcon() {
 // ── Panel Toggle ──
 panelToggle.addEventListener('click', () => {
   panel.classList.toggle('collapsed');
+  panel.classList.toggle('mobile-open');
 });
 
 // ── URL Loading ──
@@ -273,6 +274,8 @@ function triggerExplain(selectedText, surroundingContext) {
   panelEmpty.classList.add('hidden');
   panelChat.classList.remove('hidden');
   panelInputArea.classList.remove('hidden');
+  panel.classList.remove('collapsed');
+  panel.classList.add('mobile-open');
 
   // Show selected text
   selectedTextDisplay.textContent = selectedText;
@@ -422,4 +425,5 @@ function resetPanel() {
   panelEmpty.classList.remove('hidden');
   panelChat.classList.add('hidden');
   panelInputArea.classList.add('hidden');
+  panel.classList.remove('mobile-open');
 }
