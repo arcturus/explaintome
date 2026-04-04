@@ -22,11 +22,24 @@ const chatSend = document.getElementById('chat-send');
 const panelToggle = document.getElementById('panel-toggle');
 const panel = document.getElementById('panel');
 const levelBtns = document.querySelectorAll('.level-btn');
+const panelEmptyLevel = document.getElementById('panel-empty-level');
+
+const levelDescriptions = {
+  eli5: 'ELI5 — Simple words, fun analogies, like explaining to a 5-year-old',
+  simple: 'Simple — Plain language, no jargon, clear and accessible',
+  detailed: 'Detailed — Thorough explanation with proper terminology',
+  expert: 'Expert — Technical deep-dive with edge cases and caveats',
+};
+
+function updateLevelDescription() {
+  panelEmptyLevel.textContent = levelDescriptions[currentLevel] || '';
+}
 
 // ── Level Buttons ──
 // Restore saved level on load
 levelBtns.forEach(b => b.classList.remove('active'));
 document.querySelector(`.level-btn[data-level="${currentLevel}"]`)?.classList.add('active');
+updateLevelDescription();
 
 levelBtns.forEach(btn => {
   btn.addEventListener('click', () => {
@@ -34,6 +47,7 @@ levelBtns.forEach(btn => {
     btn.classList.add('active');
     currentLevel = btn.dataset.level;
     localStorage.setItem('explainme-level', currentLevel);
+    updateLevelDescription();
   });
 });
 

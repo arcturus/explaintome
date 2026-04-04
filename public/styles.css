@@ -313,6 +313,17 @@ html, body {
   line-height: 1.4;
 }
 
+.panel-empty-level {
+  font-size: 12px;
+  color: var(--blue);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+  max-width: 280px;
+  line-height: 1.4;
+  text-align: center;
+}
+
 /* ── Selection display ── */
 
 .panel-selection {
