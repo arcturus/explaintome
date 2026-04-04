@@ -611,7 +611,8 @@ html, body {
   }
 
   .topbar-url {
-    flex: 1;
+    flex: 1 1 100%;
+    order: 1;
     min-width: 0;
   }
 
@@ -628,8 +629,8 @@ html, body {
   }
 
   .topbar-level {
-    order: 1;
-    flex: 1;
+    order: 0;
+    flex: 1 0 auto;
   }
 
   .level-btn {
@@ -640,7 +641,7 @@ html, body {
   }
 
   .theme-toggle {
-    order: 1;
+    order: 0;
     width: 28px;
     height: 28px;
   }
