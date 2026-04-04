@@ -73,9 +73,14 @@ function updateThemeIcon() {
 }
 
 // ── Panel Toggle ──
+const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
+
 panelToggle.addEventListener('click', () => {
-  panel.classList.toggle('collapsed');
-  panel.classList.toggle('mobile-open');
+  if (isMobile()) {
+    panel.classList.toggle('mobile-open');
+  } else {
+    panel.classList.toggle('collapsed');
+  }
 });
 
 // ── URL Loading ──
