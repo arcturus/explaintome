@@ -9,7 +9,7 @@ function createApp({ openrouterApiKey, openrouterModel, openrouterBaseUrl, fetch
 
   const app = express();
 
-  app.use(express.json({ limit: '5mb' }));
+  app.use(express.json({ limit: '50mb' }));
   app.use(express.static(path.join(__dirname, 'public')));
 
   // ── Proxy endpoint: fetches a URL and returns its HTML ──
@@ -30,6 +30,15 @@ function createApp({ openrouterApiKey, openrouterModel, openrouterBaseUrl, fetch
       }
 
       const contentType = response.headers.get('content-type') || '';
+
+      // Handle PDF responses
+      const urlPath = new URL(url).pathname.toLowerCase();
+      if (contentType.includes('application/pdf') || urlPath.endsWith('.pdf')) {
+        const arrayBuffer = await response.arrayBuffer();
+        const base64 = Buffer.from(arrayBuffer).toString('base64');
+        return res.json({ isPdf: true, pdfBase64: base64, url });
+      }
+
       if (!contentType.includes('text/html') && !contentType.includes('text/plain')) {
         return res.status(400).json({ error: 'URL does not return HTML content' });
       }

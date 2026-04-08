@@ -273,6 +273,49 @@ html, body {
   border: none;
 }
 
+/* ── PDF Viewer ── */
+
+.pdf-viewer {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  background: #525659;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+}
+
+.pdf-page {
+  position: relative;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.pdf-text-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0.25;
+  line-height: 1;
+}
+
+.pdf-text-layer span {
+  position: absolute;
+  white-space: pre;
+  color: transparent;
+  pointer-events: all;
+}
+
+.pdf-text-layer span::selection {
+  background: rgba(28, 105, 212, 0.35);
+}
+
+.pdf-text-layer .highlight {
+  background: rgba(28, 105, 212, 0.35);
+}
+
 /* ── Selection floating button ── */
 
 .explain-fab {
