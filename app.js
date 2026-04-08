@@ -32,7 +32,8 @@ function createApp({ openrouterApiKey, openrouterModel, openrouterBaseUrl, fetch
       const contentType = response.headers.get('content-type') || '';
 
       // Handle PDF responses
-      if (contentType.includes('application/pdf') || url.toLowerCase().endsWith('.pdf')) {
+      const urlPath = new URL(url).pathname.toLowerCase();
+      if (contentType.includes('application/pdf') || urlPath.endsWith('.pdf')) {
         const arrayBuffer = await response.arrayBuffer();
         const base64 = Buffer.from(arrayBuffer).toString('base64');
         return res.json({ isPdf: true, pdfBase64: base64, url });
