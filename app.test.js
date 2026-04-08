@@ -14,6 +14,11 @@ function makeFetchResponse({ status = 200, statusText = 'OK', headers = {}, body
     statusText,
     headers: new Map(Object.entries(headers)),
     text: () => Promise.resolve(body),
+    arrayBuffer: () => {
+      if (body instanceof ArrayBuffer) return Promise.resolve(body);
+      const encoder = new TextEncoder();
+      return Promise.resolve(encoder.encode(body).buffer);
+    },
     body: null,
   };
 }
@@ -90,6 +95,48 @@ describe('POST /api/proxy', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.html).toContain('href="//cdn.example.com/file.js"');
+  });
+
+  it('returns base64 PDF data when content-type is application/pdf', async () => {
+    const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]); // "%PDF-"
+    const fetchFn = mockFetch(() =>
+      Promise.resolve(makeFetchResponse({
+        headers: { 'content-type': 'application/pdf' },
+        body: pdfBytes.buffer,
+      }))
+    );
+
+    const app = createApp({ openrouterApiKey: 'test-key', fetchFn });
+    const res = await request(app)
+      .post('/api/proxy')
+      .send({ url: 'https://example.com/doc.pdf' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.isPdf).toBe(true);
+    expect(res.body.url).toBe('https://example.com/doc.pdf');
+    expect(typeof res.body.pdfBase64).toBe('string');
+    // Verify the base64 decodes back to the original bytes
+    const decoded = Buffer.from(res.body.pdfBase64, 'base64');
+    expect(decoded[0]).toBe(0x25); // %
+    expect(decoded[1]).toBe(0x50); // P
+  });
+
+  it('detects PDF by .pdf URL extension even without content-type', async () => {
+    const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
+    const fetchFn = mockFetch(() =>
+      Promise.resolve(makeFetchResponse({
+        headers: { 'content-type': 'application/octet-stream' },
+        body: pdfBytes.buffer,
+      }))
+    );
+
+    const app = createApp({ openrouterApiKey: 'test-key', fetchFn });
+    const res = await request(app)
+      .post('/api/proxy')
+      .send({ url: 'https://example.com/report.PDF' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.isPdf).toBe(true);
   });
 
   it('returns error when remote returns non-HTML content', async () => {

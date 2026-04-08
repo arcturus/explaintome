@@ -1,11 +1,17 @@
 document.getElementById('year').textContent = new Date().getFullYear();
 
+// ── pdf.js setup ──
+if (window.pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
 // ── State ──
 let currentLevel = localStorage.getItem('explaintome-level') || 'eli5';
 let conversationHistory = [];
 let currentPageTitle = '';
 let currentPageUrl = '';
 let explainFab = null;
+let isPdfMode = false;
 
 
 // ── DOM ──
@@ -14,6 +20,7 @@ const goBtn = document.getElementById('go-btn');
 const viewerEmpty = document.getElementById('viewer-empty');
 const viewerLoading = document.getElementById('viewer-loading');
 const contentFrame = document.getElementById('content-frame');
+const pdfViewer = document.getElementById('pdf-viewer');
 const panelEmpty = document.getElementById('panel-empty');
 const panelChat = document.getElementById('panel-chat');
 const selectedTextDisplay = document.getElementById('selected-text-display');
@@ -97,6 +104,8 @@ async function loadUrl() {
   resetPanel();
   viewerEmpty.classList.add('hidden');
   contentFrame.classList.add('hidden');
+  pdfViewer.classList.add('hidden');
+  pdfViewer.innerHTML = '';
   viewerLoading.classList.remove('hidden');
 
   try {
@@ -114,40 +123,50 @@ async function loadUrl() {
 
     currentPageUrl = url;
 
-    // Inject into iframe via srcdoc
-    // Add a base tag so relative resources resolve, and inject selection styles
-    const injectedStyles = `
-      <style>
-        ::selection { background: rgba(28, 105, 212, 0.35) !important; }
-      </style>
-    `;
-
-    const baseTag = `<base href="${url}">`;
-    let html = data.html;
-
-    // Insert base tag and styles into head
-    if (html.includes('<head>')) {
-      html = html.replace('<head>', `<head>${baseTag}${injectedStyles}`);
-    } else if (html.includes('<html>')) {
-      html = html.replace('<html>', `<html><head>${baseTag}${injectedStyles}</head>`);
+    if (data.isPdf) {
+      // PDF mode: render with pdf.js
+      isPdfMode = true;
+      contentFrame.classList.add('hidden');
+      pdfViewer.classList.remove('hidden');
+      viewerLoading.classList.add('hidden');
+      currentPageTitle = url.split('/').pop() || 'PDF Document';
+      await renderPdf(data.pdfBase64);
     } else {
-      html = `<head>${baseTag}${injectedStyles}</head>${html}`;
-    }
+      // HTML mode: inject into iframe via srcdoc
+      isPdfMode = false;
+      pdfViewer.classList.add('hidden');
+      pdfViewer.innerHTML = '';
 
-    contentFrame.srcdoc = html;
-    contentFrame.classList.remove('hidden');
-    viewerLoading.classList.add('hidden');
+      const injectedStyles = `
+        <style>
+          ::selection { background: rgba(28, 105, 212, 0.35) !important; }
+        </style>
+      `;
 
-    // Wait for iframe to load, then set up selection listener
-    contentFrame.onload = () => {
-      setupIframeSelectionListener();
-      // Try to get page title
-      try {
-        currentPageTitle = contentFrame.contentDocument.title || '';
-      } catch (e) {
-        currentPageTitle = '';
+      const baseTag = `<base href="${url}">`;
+      let html = data.html;
+
+      if (html.includes('<head>')) {
+        html = html.replace('<head>', `<head>${baseTag}${injectedStyles}`);
+      } else if (html.includes('<html>')) {
+        html = html.replace('<html>', `<html><head>${baseTag}${injectedStyles}</head>`);
+      } else {
+        html = `<head>${baseTag}${injectedStyles}</head>${html}`;
       }
-    };
+
+      contentFrame.srcdoc = html;
+      contentFrame.classList.remove('hidden');
+      viewerLoading.classList.add('hidden');
+
+      contentFrame.onload = () => {
+        setupIframeSelectionListener();
+        try {
+          currentPageTitle = contentFrame.contentDocument.title || '';
+        } catch (e) {
+          currentPageTitle = '';
+        }
+      };
+    }
 
   } catch (err) {
     viewerLoading.classList.add('hidden');
@@ -188,8 +207,10 @@ function showExplainFab(text, selection, iframeDoc) {
   // Capture context now before selection might get cleared
   const surrounding = getSurroundingContext(range, iframeDoc);
 
-  // Get iframe position relative to viewport
-  const frameRect = contentFrame.getBoundingClientRect();
+  // For iframe content, offset by the iframe's viewport position.
+  // For PDF (same document), the rect is already in viewport coordinates.
+  const isIframe = iframeDoc !== document;
+  const frameRect = isIframe ? contentFrame.getBoundingClientRect() : { left: 0, top: 0 };
 
   const fab = document.createElement('button');
   fab.className = 'explain-fab';
@@ -216,7 +237,9 @@ function showExplainFab(text, selection, iframeDoc) {
     if (!fab.contains(e.target)) {
       removeExplainFab();
       document.removeEventListener('mousedown', removeHandler, true);
-      iframeDoc.removeEventListener('mousedown', iframeRemoveHandler, true);
+      if (isIframe) {
+        iframeDoc.removeEventListener('mousedown', iframeRemoveHandler, true);
+      }
     }
   };
   const iframeRemoveHandler = () => {
@@ -226,7 +249,9 @@ function showExplainFab(text, selection, iframeDoc) {
   };
   setTimeout(() => {
     document.addEventListener('mousedown', removeHandler, true);
-    iframeDoc.addEventListener('mousedown', iframeRemoveHandler, true);
+    if (isIframe) {
+      iframeDoc.addEventListener('mousedown', iframeRemoveHandler, true);
+    }
   }, 50);
 }
 
@@ -261,6 +286,72 @@ function getSurroundingContext(range, doc) {
   } catch (e) {
     return '';
   }
+}
+
+// ── PDF Rendering ──
+async function renderPdf(base64Data) {
+  pdfViewer.innerHTML = '';
+
+  const binaryStr = atob(base64Data);
+  const bytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) {
+    bytes[i] = binaryStr.charCodeAt(i);
+  }
+
+  const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const scale = 1.5;
+    const viewport = page.getViewport({ scale });
+
+    // Page container
+    const pageDiv = document.createElement('div');
+    pageDiv.className = 'pdf-page';
+    pageDiv.style.width = `${viewport.width}px`;
+    pageDiv.style.height = `${viewport.height}px`;
+
+    // Canvas layer
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    pageDiv.appendChild(canvas);
+
+    const ctx = canvas.getContext('2d');
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    // Text layer for selection
+    const textLayerDiv = document.createElement('div');
+    textLayerDiv.className = 'pdf-text-layer';
+    pageDiv.appendChild(textLayerDiv);
+
+    const textContent = await page.getTextContent();
+    pdfjsLib.renderTextLayer({
+      textContent,
+      container: textLayerDiv,
+      viewport,
+      textDivs: [],
+    });
+
+    pdfViewer.appendChild(pageDiv);
+  }
+
+  setupPdfSelectionListener();
+}
+
+function setupPdfSelectionListener() {
+  pdfViewer.addEventListener('mouseup', () => {
+    setTimeout(() => {
+      const selection = document.getSelection();
+      const text = selection ? selection.toString().trim() : '';
+
+      removeExplainFab();
+
+      if (text.length > 2) {
+        showExplainFab(text, selection, document);
+      }
+    }, 10);
+  });
 }
 
 // ── Explain Flow ──
