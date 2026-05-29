@@ -1,5 +1,6 @@
 const request = require('supertest');
 const { createApp } = require('./app');
+const { validateUrl } = require('./lib/validate-url');
 
 // ── Helpers ──
 
@@ -145,6 +146,53 @@ describe('POST /api/proxy', () => {
     const decoded = Buffer.from(res.body.pdfBase64, 'base64');
     expect(decoded[0]).toBe(0x25); // %
     expect(decoded[1]).toBe(0x50); // P
+  });
+
+  it('follows only re-validated public redirects when fetching PDFs', async () => {
+    const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
+    const fetchFn = mockFetch((url, opts) => {
+      expect(opts.redirect).toBe('manual');
+      if (url === 'https://example.com/doc.pdf') {
+        return Promise.resolve(makeFetchResponse({
+          status: 302,
+          statusText: 'Found',
+          headers: { location: '/final.pdf' },
+        }));
+      }
+      return Promise.resolve(makeFetchResponse({
+        headers: { 'content-type': 'application/pdf' },
+        body: pdfBytes.buffer,
+      }));
+    });
+
+    const app = createApp({ openrouterApiKey: 'test-key', fetchFn });
+    const res = await request(app)
+      .post('/api/proxy')
+      .send({ url: 'https://example.com/doc.pdf' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.isPdf).toBe(true);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(fetchFn.mock.calls[1][0]).toBe('https://example.com/final.pdf');
+  });
+
+  it('rejects redirects to private addresses when fetching PDFs', async () => {
+    const fetchFn = mockFetch(() =>
+      Promise.resolve(makeFetchResponse({
+        status: 302,
+        statusText: 'Found',
+        headers: { location: 'http://127.0.0.1/admin' },
+      }))
+    );
+
+    const app = createApp({ openrouterApiKey: 'test-key', fetchFn });
+    const res = await request(app)
+      .post('/api/proxy')
+      .send({ url: 'https://example.com/doc.pdf' });
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toContain('private network');
+    expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
   it('detects PDF by .pdf URL extension even without content-type', async () => {
@@ -316,6 +364,17 @@ describe('POST /api/proxy', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error).toContain('Not Found');
+  });
+});
+
+describe('validateUrl', () => {
+  it('rejects IPv4-mapped IPv6 private addresses', async () => {
+    await expect(validateUrl('http://[::ffff:127.0.0.1]/')).rejects.toThrow('private network');
+    await expect(validateUrl('http://[::ffff:169.254.169.254]/')).rejects.toThrow('private network');
+  });
+
+  it('allows public IPv6 literals', async () => {
+    await expect(validateUrl('https://[2606:4700:4700::1111]/')).resolves.toBeTruthy();
   });
 });
 
