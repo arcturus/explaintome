@@ -1,60 +1,61 @@
 const express = require('express');
 const path = require('path');
+const { validateUrl } = require('./lib/validate-url');
+const { createRenderPage } = require('./lib/render-page');
+const { isPdfPath, headIsPdf, fetchPdfAsBase64 } = require('./lib/proxy-fetch');
+const { postProcessHtml } = require('./lib/html-post-process');
+const { logger } = require('./lib/logger');
 
-function createApp({ openrouterApiKey, openrouterModel, openrouterBaseUrl, fetchFn } = {}) {
+function createApp({ openrouterApiKey, openrouterModel, openrouterBaseUrl, fetchFn, renderPageFn } = {}) {
   const API_KEY = openrouterApiKey || process.env.OPENROUTER_API_KEY;
   const MODEL = openrouterModel || process.env.OPENROUTER_MODEL || 'anthropic/claude-sonnet-4';
   const BASE_URL = openrouterBaseUrl || process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
   const _fetch = fetchFn || globalThis.fetch;
+  const _renderPage = createRenderPage({ renderFn: renderPageFn });
 
   const app = express();
 
   app.use(express.json({ limit: '50mb' }));
   app.use(express.static(path.join(__dirname, 'public')));
 
-  // ── Proxy endpoint: fetches a URL and returns its HTML ──
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+      const meta = {
+        method: req.method,
+        path: req.path,
+        status: res.statusCode,
+        ms: Date.now() - start,
+      };
+      if (res.statusCode >= 500) logger.error('request', meta);
+      else if (res.statusCode >= 400) logger.warn('request', meta);
+      else logger.info('request', meta);
+    });
+    next();
+  });
+
+  // ── Proxy endpoint: renders a URL in headless Chromium and returns HTML ──
   app.post('/api/proxy', async (req, res) => {
     const { url } = req.body;
     if (!url) return res.status(400).json({ error: 'URL is required' });
 
     try {
-      const response = await _fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        },
-      });
+      await validateUrl(url);
+      logger.debug('proxy start', { url });
 
-      if (!response.ok) {
-        return res.status(response.status).json({ error: `Failed to fetch: ${response.statusText}` });
+      if (isPdfPath(url) || (await headIsPdf(_fetch, url))) {
+        logger.debug('proxy pdf', { url });
+        return res.json(await fetchPdfAsBase64(_fetch, url));
       }
 
-      const contentType = response.headers.get('content-type') || '';
-
-      // Handle PDF responses
-      const urlPath = new URL(url).pathname.toLowerCase();
-      if (contentType.includes('application/pdf') || urlPath.endsWith('.pdf')) {
-        const arrayBuffer = await response.arrayBuffer();
-        const base64 = Buffer.from(arrayBuffer).toString('base64');
-        return res.json({ isPdf: true, pdfBase64: base64, url });
-      }
-
-      if (!contentType.includes('text/html') && !contentType.includes('text/plain')) {
-        return res.status(400).json({ error: 'URL does not return HTML content' });
-      }
-
-      const html = await response.text();
-
-      // Rewrite relative URLs to absolute
-      const baseUrl = new URL(url);
-      const base = baseUrl.origin;
-      const rewritten = html
-        .replace(/(href|src|action)="\/(?!\/)/g, `$1="${base}/`)
-        .replace(/(href|src|action)='\/(?!\/)/g, `$1='${base}/`);
-
-      res.json({ html: rewritten, url });
+      const rawHtml = await _renderPage(url);
+      const html = postProcessHtml(rawHtml, url);
+      logger.debug('proxy done', { url, bytes: html.length });
+      res.json({ html, url });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      const status = err.status || 500;
+      logger.error('proxy failed', { url, status, error: err.message });
+      res.status(status).json({ error: err.message });
     }
   });
 
@@ -87,7 +88,7 @@ function createApp({ openrouterApiKey, openrouterModel, openrouterBaseUrl, fetch
 
     if (!response.ok) {
       const errBody = await response.text();
-      console.error('OpenRouter error:', response.status, errBody);
+      logger.error('OpenRouter error', { status: response.status, body: errBody });
       res.write(`data: ${JSON.stringify({ text: `Error: ${response.status} — ${errBody}` })}\n\n`);
       res.write('data: [DONE]\n\n');
       res.end();
@@ -171,9 +172,10 @@ Keep your response focused and well-structured. Use markdown formatting.`;
     messages.push({ role: 'user', content: userMessage });
 
     try {
+      logger.debug('explain', { level, pageUrl, textLen: selectedText.length });
       await streamChat(systemPrompt, messages, res);
     } catch (err) {
-      console.error('LLM error:', err);
+      logger.error('explain failed', { error: err.message });
       res.status(500).json({ error: err.message });
     }
   });
@@ -193,9 +195,10 @@ Keep your response focused and well-structured. Use markdown formatting.`;
     const messages = [...(conversationHistory || []), { role: 'user', content: message }];
 
     try {
+      logger.debug('chat', { level, pageUrl });
       await streamChat(systemPrompt, messages, res);
     } catch (err) {
-      console.error('LLM error:', err);
+      logger.error('chat failed', { error: err.message });
       res.status(500).json({ error: err.message });
     }
   });

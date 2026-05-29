@@ -16,6 +16,7 @@ Paste a URL, and ExplainToMe loads the page in a proxied viewer where you can se
 
 ```bash
 npm install
+npx playwright install chromium
 ```
 
 Create a `.env` file:
@@ -23,6 +24,10 @@ Create a `.env` file:
 ```
 OPENROUTER_API_KEY=your-key-here
 OPENROUTER_MODEL=anthropic/claude-sonnet-4
+
+# Logging (optional)
+# LOG_LEVEL=debug          # debug | info | warn | error (default: debug locally, info in production)
+# NODE_ENV=production      # production uses structured JSON logs; dev uses readable lines
 ```
 
 Any model available on [OpenRouter](https://openrouter.ai) works — just change `OPENROUTER_MODEL`.
@@ -43,7 +48,7 @@ npm test
 
 ## Tech stack
 
-- **Backend:** Node.js + Express — URL proxy, SSE-streamed LLM responses via OpenRouter
+- **Backend:** Node.js + Express — headless Chromium page rendering (Playwright), SSE-streamed LLM responses via OpenRouter
 - **Frontend:** Vanilla HTML/CSS/JS, no build step
 - **LLM:** Any OpenRouter-compatible model
 - **Design:** BMW-inspired dark/light theme — sharp corners, blue accent, weight extremes
