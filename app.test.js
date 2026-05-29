@@ -1,6 +1,7 @@
 const request = require('supertest');
 const dns = require('dns').promises;
 const { createApp } = require('./app');
+const { installNetworkGuard } = require('./lib/render-page');
 const { validateUrl } = require('./lib/validate-url');
 
 // ── Helpers ──
@@ -387,6 +388,44 @@ describe('validateUrl', () => {
 
   it('allows public IPv6 literals', async () => {
     await expect(validateUrl('https://[2606:4700:4700::1111]/')).resolves.toBeTruthy();
+  });
+});
+
+describe('render network guard', () => {
+  async function installGuardAndHandle(url) {
+    let handler;
+    const context = {
+      route: vi.fn((_pattern, routeHandler) => {
+        handler = routeHandler;
+        return Promise.resolve();
+      }),
+    };
+    const route = {
+      request: () => ({
+        url: () => url,
+        resourceType: () => 'image',
+      }),
+      continue: vi.fn(() => Promise.resolve()),
+      abort: vi.fn(() => Promise.resolve()),
+    };
+
+    await installNetworkGuard(context);
+    await handler(route);
+    return route;
+  }
+
+  it('aborts private subresource requests before Chromium connects', async () => {
+    const route = await installGuardAndHandle('http://127.0.0.1/secret');
+
+    expect(route.continue).not.toHaveBeenCalled();
+    expect(route.abort).toHaveBeenCalledWith('blockedbyclient');
+  });
+
+  it('continues public subresource requests', async () => {
+    const route = await installGuardAndHandle('https://93.184.216.34/asset.png');
+
+    expect(route.continue).toHaveBeenCalled();
+    expect(route.abort).not.toHaveBeenCalled();
   });
 });
 
