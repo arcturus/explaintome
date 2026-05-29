@@ -4,7 +4,11 @@ const { createApp } = require('./app');
 // ── Helpers ──
 
 function mockFetch(handler) {
-  return vi.fn(handler);
+  return vi.fn((url, options) => handler(url, options || {}));
+}
+
+function mockRenderPage(handler) {
+  return vi.fn((url) => handler(url));
 }
 
 function makeFetchResponse({ status = 200, statusText = 'OK', headers = {}, body = '' }) {
@@ -61,34 +65,56 @@ describe('POST /api/proxy', () => {
     expect(res.body.error).toBe('URL is required');
   });
 
-  it('proxies HTML content and rewrites relative URLs', async () => {
-    const fetchFn = mockFetch(() =>
-      Promise.resolve(makeFetchResponse({
-        headers: { 'content-type': 'text/html' },
-        body: '<html><head></head><body><a href="/about">About</a><img src="/img/logo.png"></body></html>',
-      }))
+  it('rejects non-http URLs', async () => {
+    const app = createApp({ openrouterApiKey: 'test-key' });
+    const res = await request(app)
+      .post('/api/proxy')
+      .send({ url: 'file:///etc/passwd' });
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toContain('Only http and https');
+  });
+
+  it('renders HTML and rewrites relative URLs', async () => {
+    const renderPageFn = mockRenderPage(() =>
+      Promise.resolve(
+        '<html><head></head><body><a href="/about">About</a><img src="/img/logo.png"></body></html>'
+      )
     );
 
-    const app = createApp({ openrouterApiKey: 'test-key', fetchFn });
+    const app = createApp({ openrouterApiKey: 'test-key', renderPageFn });
     const res = await request(app)
       .post('/api/proxy')
       .send({ url: 'https://example.com/page' });
 
     expect(res.status).toBe(200);
     expect(res.body.url).toBe('https://example.com/page');
+    expect(renderPageFn).toHaveBeenCalledWith('https://example.com/page');
     expect(res.body.html).toContain('href="https://example.com/about"');
     expect(res.body.html).toContain('src="https://example.com/img/logo.png"');
   });
 
-  it('does not rewrite absolute URLs', async () => {
-    const fetchFn = mockFetch(() =>
-      Promise.resolve(makeFetchResponse({
-        headers: { 'content-type': 'text/html' },
-        body: '<a href="//cdn.example.com/file.js">CDN</a>',
-      }))
+  it('strips script tags from rendered HTML', async () => {
+    const renderPageFn = mockRenderPage(() =>
+      Promise.resolve('<html><body><script>alert(1)</script><p>Hi</p></body></html>')
     );
 
-    const app = createApp({ openrouterApiKey: 'test-key', fetchFn });
+    const app = createApp({ openrouterApiKey: 'test-key', renderPageFn });
+    const res = await request(app)
+      .post('/api/proxy')
+      .send({ url: 'https://example.com' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.html).not.toContain('<script');
+    expect(res.body.html).toContain('<p>Hi</p>');
+  });
+
+  it('does not rewrite absolute URLs', async () => {
+    const renderPageFn = mockRenderPage(() =>
+      Promise.resolve('<a href="//cdn.example.com/file.js">CDN</a>')
+    );
+
+    const app = createApp({ openrouterApiKey: 'test-key', renderPageFn });
     const res = await request(app)
       .post('/api/proxy')
       .send({ url: 'https://example.com' });
@@ -99,7 +125,7 @@ describe('POST /api/proxy', () => {
 
   it('returns base64 PDF data when content-type is application/pdf', async () => {
     const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]); // "%PDF-"
-    const fetchFn = mockFetch(() =>
+    const fetchFn = mockFetch((_url, opts) =>
       Promise.resolve(makeFetchResponse({
         headers: { 'content-type': 'application/pdf' },
         body: pdfBytes.buffer,
@@ -141,12 +167,17 @@ describe('POST /api/proxy', () => {
 
   it('detects PDF by content-type without .pdf extension (e.g. arxiv URLs)', async () => {
     const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37]); // "%PDF-1.7"
-    const fetchFn = mockFetch(() =>
-      Promise.resolve(makeFetchResponse({
+    const fetchFn = mockFetch((_url, opts) => {
+      if (opts.method === 'HEAD') {
+        return Promise.resolve(makeFetchResponse({
+          headers: { 'content-type': 'application/pdf' },
+        }));
+      }
+      return Promise.resolve(makeFetchResponse({
         headers: { 'content-type': 'application/pdf' },
         body: pdfBytes.buffer,
-      }))
-    );
+      }));
+    });
 
     const app = createApp({ openrouterApiKey: 'test-key', fetchFn });
     const res = await request(app)
@@ -203,14 +234,22 @@ describe('POST /api/proxy', () => {
   });
 
   it('does not treat .pdf in path segments as PDF extension', async () => {
-    const fetchFn = mockFetch(() =>
-      Promise.resolve(makeFetchResponse({
+    const fetchFn = mockFetch((_url, opts) => {
+      if (opts.method === 'HEAD') {
+        return Promise.resolve(makeFetchResponse({
+          headers: { 'content-type': 'text/html' },
+        }));
+      }
+      return Promise.resolve(makeFetchResponse({
         headers: { 'content-type': 'text/html' },
         body: '<html><body>PDF viewer page</body></html>',
-      }))
+      }));
+    });
+    const renderPageFn = mockRenderPage(() =>
+      Promise.resolve('<html><body>PDF viewer page</body></html>')
     );
 
-    const app = createApp({ openrouterApiKey: 'test-key', fetchFn });
+    const app = createApp({ openrouterApiKey: 'test-key', fetchFn, renderPageFn });
     const res = await request(app)
       .post('/api/proxy')
       .send({ url: 'https://example.com/pdf-viewer/doc123' });
@@ -218,31 +257,54 @@ describe('POST /api/proxy', () => {
     expect(res.status).toBe(200);
     expect(res.body.isPdf).toBeUndefined();
     expect(res.body.html).toContain('PDF viewer page');
+    expect(renderPageFn).toHaveBeenCalled();
   });
 
-  it('returns error when remote returns non-HTML content', async () => {
-    const fetchFn = mockFetch(() =>
-      Promise.resolve(makeFetchResponse({
-        headers: { 'content-type': 'application/json' },
-        body: '{}',
-      }))
-    );
+  it('returns error when page render fails', async () => {
+    const fetchFn = mockFetch((_url, opts) => {
+      if (opts.method === 'HEAD') {
+        return Promise.resolve(makeFetchResponse({ headers: { 'content-type': 'text/html' } }));
+      }
+      return Promise.resolve(makeFetchResponse({ headers: { 'content-type': 'text/html' } }));
+    });
+    const renderPageFn = mockRenderPage(() => {
+      const err = new Error('Failed to load page: 404 Not Found');
+      return Promise.reject(err);
+    });
 
-    const app = createApp({ openrouterApiKey: 'test-key', fetchFn });
+    const app = createApp({ openrouterApiKey: 'test-key', fetchFn, renderPageFn });
     const res = await request(app)
       .post('/api/proxy')
-      .send({ url: 'https://example.com/api' });
+      .send({ url: 'https://example.com/missing' });
 
-    expect(res.status).toBe(400);
-    expect(res.body.error).toBe('URL does not return HTML content');
+    expect(res.status).toBe(500);
+    expect(res.body.error).toContain('404');
   });
 
-  it('forwards upstream HTTP errors', async () => {
+  it('returns 500 on render network error', async () => {
+    const fetchFn = mockFetch((_url, opts) => {
+      if (opts.method === 'HEAD') {
+        return Promise.resolve(makeFetchResponse({ headers: { 'content-type': 'text/html' } }));
+      }
+      return Promise.resolve(makeFetchResponse({ headers: { 'content-type': 'text/html' } }));
+    });
+    const renderPageFn = mockRenderPage(() => Promise.reject(new Error('DNS resolution failed')));
+
+    const app = createApp({ openrouterApiKey: 'test-key', fetchFn, renderPageFn });
+    const res = await request(app)
+      .post('/api/proxy')
+      .send({ url: 'https://example.com/page' });
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('DNS resolution failed');
+  });
+
+  it('forwards upstream HTTP errors for PDF fetch', async () => {
     const fetchFn = mockFetch(() =>
       Promise.resolve(makeFetchResponse({
         status: 404,
         statusText: 'Not Found',
-        headers: { 'content-type': 'text/html' },
+        headers: { 'content-type': 'application/pdf' },
         body: 'Not Found',
       }))
     );
@@ -250,22 +312,10 @@ describe('POST /api/proxy', () => {
     const app = createApp({ openrouterApiKey: 'test-key', fetchFn });
     const res = await request(app)
       .post('/api/proxy')
-      .send({ url: 'https://example.com/missing' });
+      .send({ url: 'https://example.com/missing.pdf' });
 
     expect(res.status).toBe(404);
     expect(res.body.error).toContain('Not Found');
-  });
-
-  it('returns 500 on network error', async () => {
-    const fetchFn = mockFetch(() => Promise.reject(new Error('DNS resolution failed')));
-
-    const app = createApp({ openrouterApiKey: 'test-key', fetchFn });
-    const res = await request(app)
-      .post('/api/proxy')
-      .send({ url: 'https://nonexistent.invalid' });
-
-    expect(res.status).toBe(500);
-    expect(res.body.error).toBe('DNS resolution failed');
   });
 });
 

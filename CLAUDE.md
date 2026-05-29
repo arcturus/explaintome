@@ -18,7 +18,7 @@ ExplainToMe is a web app that lets users browse any URL and get LLM-powered expl
 `app.js` exports a `createApp()` factory that accepts injectable dependencies (`fetchFn`, `openrouterApiKey`, `openrouterModel`, `openrouterBaseUrl`). `server.js` is the thin entry point that loads `.env` and starts listening.
 
 Three API endpoints:
-- `POST /api/proxy` — fetches a URL server-side, rewrites relative URLs to absolute, returns HTML. This is how we bypass cross-origin iframe restrictions so text selection works.
+- `POST /api/proxy` — renders a URL in headless Chromium (Playwright), absolutizes asset URLs, strips scripts, returns HTML snapshot. PDF URLs are still fetched via `fetch`. Validates URLs against SSRF (private IPs blocked). This bypasses cross-origin iframe restrictions so text selection works.
 - `POST /api/explain` — takes selected text + surrounding context + explanation level, streams an LLM response via SSE.
 - `POST /api/chat` — follow-up questions in the same conversation, also SSE-streamed.
 
@@ -41,10 +41,15 @@ All config via environment variables (loaded from `.env` by dotenv):
 - `OPENROUTER_MODEL` — defaults to `anthropic/claude-sonnet-4`
 - `OPENROUTER_BASE_URL` — defaults to `https://openrouter.ai/api/v1`
 - `PORT` — defaults to 6565
+- `RENDER_TIMEOUT_MS` — headless page load timeout (default 30000)
+- `RENDER_WAIT_UNTIL` — Playwright `waitUntil` (default `domcontentloaded`)
+- `PROXY_USER_AGENT` — optional override for proxy/render User-Agent (default in `lib/constants.js`)
+
+After `npm install`, run `npx playwright install chromium` once (required for HTML proxying).
 
 ### Testing
 
-Tests use vitest + supertest with `globals: true` (no vitest imports needed). The `createApp()` factory accepts a `fetchFn` parameter for mocking external HTTP calls — both URL proxying and OpenRouter streaming are tested this way without hitting real services.
+Tests use vitest + supertest with `globals: true` (no vitest imports needed). The `createApp()` factory accepts `fetchFn` (PDF + OpenRouter) and `renderPageFn` (HTML proxy) for mocking — tests never launch Chromium unless you opt into integration tests.
 
 ### Explanation Levels
 
