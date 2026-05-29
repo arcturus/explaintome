@@ -1,4 +1,5 @@
 const request = require('supertest');
+const dns = require('dns').promises;
 const { createApp } = require('./app');
 const { validateUrl } = require('./lib/validate-url');
 
@@ -371,6 +372,17 @@ describe('validateUrl', () => {
   it('rejects IPv4-mapped IPv6 private addresses', async () => {
     await expect(validateUrl('http://[::ffff:127.0.0.1]/')).rejects.toThrow('private network');
     await expect(validateUrl('http://[::ffff:169.254.169.254]/')).rejects.toThrow('private network');
+  });
+
+  it('rejects DNS results with dotted IPv4-mapped IPv6 private addresses', async () => {
+    const originalLookup = dns.lookup;
+    dns.lookup = vi.fn(() => Promise.resolve([{ address: '::ffff:127.0.0.1', family: 6 }]));
+
+    try {
+      await expect(validateUrl('https://mapped-private.example')).rejects.toThrow('private network');
+    } finally {
+      dns.lookup = originalLookup;
+    }
   });
 
   it('allows public IPv6 literals', async () => {
